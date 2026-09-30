@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+backend/venv/
+
+# Datasets
+dataset/
+datasets/
+backend/unet_training/dataset/
+backend/yolo_training/dataset/
+
+# Training outputs
+runs/
+backend/runs/
+outputs/
+uploads/
+temp/
+
+# Models
+*.pt
+*.pth
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
