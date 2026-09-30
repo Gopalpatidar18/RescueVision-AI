@@ -1,42 +1,32 @@
-from fastapi import APIRouter, UploadFile, File
-import shutil
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
+from app.inference import process_video
 import os
+import shutil
+import uuid
 
-from app.services.smoke_service import remove_smoke
-from app.services.yolo_service import detect_objects
 
 router = APIRouter()
 
-UPLOAD_FOLDER = "app/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.post("/upload")
-async def upload_image(file: UploadFile = File(...)):
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+
+@router.post("/upload-video")
+async def upload_video(file: UploadFile = File(...)):
+
+    if not file.filename.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
+        raise HTTPException(status_code=400, detail="Only video files are allowed.")
+
+    filename = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Smoke removal
-    enhanced_image = remove_smoke(file_path)
+    output_video = process_video(file_path)
 
-    # Object detection
-    results = detect_objects(enhanced_image)
-
-    detections = []
-
-    for r in results:
-        for box in r.boxes:
-            detections.append({
-                "class": int(box.cls[0]),
-                "confidence": float(box.conf[0])
-            })
-
-    return {
-    "message": "Processing Completed",
-    "original_image": file.filename,
-    "enhanced_image": enhanced_image,
-    "objects_detected": len(detections),
-    "detections": detections,
-    "output_image": "app/outputs/detected.jpg"
-}
+    return JSONResponse({
+        "message": "Processing completed",
+        "output_video": output_video
+        })

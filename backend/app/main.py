@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import router
+from app.api.upload import router as upload_router
 
 app = FastAPI(title="RescueVision AI")
 
@@ -12,11 +12,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router)
+app.include_router(upload_router)
 
 @app.get("/")
-def root():
+def home():
     return {
-        "status": "Running",
-        "project": "RescueVision AI"
+        "message": "RescueVision AI Backend Running"
     }
