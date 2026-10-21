@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  color: #192820;
+  background: #f2f4ef;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 360px;
+  scroll-behavior: smooth;
+  scroll-padding-top: 88px;
+}
+
+body {
+  min-width: 360px;
+  min-height: 100vh;
+  margin: 0;
+  background: #f2f4ef;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid #e59b5e;
+  outline-offset: 3px;
+}
+
+::selection {
+  color: #15231b;
+  background: #c8ee7a;
+}
+
+.rv-canvas {
+  background-color: #f2f4ef;
+  background-image: radial-gradient(#dce2d8 0.7px, transparent 0.7px);
+  background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

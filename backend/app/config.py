@@ -1,14 +1,13 @@
-import os
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = Path(__file__).resolve().parents[1]
 
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-OUTPUT_FOLDER = os.path.join(BASE_DIR, "outputs")
-TEMP_FOLDER = os.path.join(BASE_DIR, "temp")
+UPLOAD_FOLDER = BASE_DIR / "uploads"
+OUTPUT_FOLDER = BASE_DIR / "outputs"
+TEMP_FOLDER = BASE_DIR / "temp"
 
-UNET_MODEL = os.path.join(BASE_DIR, "models", "unet_best.pth")
-YOLO_MODEL = os.path.join(BASE_DIR, "models", "yolov8s.pt")
+UNET_MODEL = BASE_DIR / "unet_training" / "models" / "unet_best.pth"
+YOLO_MODEL = BASE_DIR / "yolov8m.pt"
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-os.makedirs(TEMP_FOLDER, exist_ok=True)
+for folder in (UPLOAD_FOLDER, OUTPUT_FOLDER, TEMP_FOLDER):
+	folder.mkdir(parents=True, exist_ok=True)

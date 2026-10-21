@@ -1,8 +1,9 @@
 import os
+
 import cv2
+import imageio_ffmpeg
 
 def frames_to_video(frame_folder, output_video, fps=30):
-
     os.makedirs(os.path.dirname(output_video), exist_ok=True)
 
     frames = sorted([
@@ -11,26 +12,38 @@ def frames_to_video(frame_folder, output_video, fps=30):
     ])
 
     if not frames:
-        print("No frames found")
-        return
+        raise ValueError("No processed frames were available for video output.")
 
     first = cv2.imread(os.path.join(frame_folder, frames[0]))
+    if first is None:
+        raise ValueError("Could not read the first processed frame.")
     h, w = first.shape[:2]
+    output_size = (w + w % 2, h + h % 2)
+    writer = imageio_ffmpeg.write_frames(
+        output_video,
+        output_size,
+        fps=fps,
+        codec="libx264",
+        pix_fmt_in="bgr24",
+        pix_fmt_out="yuv420p",
+        output_params=["-movflags", "+faststart"],
+    )
+    writer.send(None)
 
-    # Try H.264 codec
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    writer = cv2.VideoWriter(output_video, fourcc, fps, (w, h))
-
-    # Fallback to mp4v
-    if not writer.isOpened():
-        print("avc1 not supported, using mp4v")
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(output_video, fourcc, fps, (w, h))
-
-    for frame in frames:
-        img = cv2.imread(os.path.join(frame_folder, frame))
-        writer.write(img)
-
-    writer.release()
-
-    print("Saved:", output_video)
+    try:
+        for frame in frames:
+            img = cv2.imread(os.path.join(frame_folder, frame))
+            if img is None:
+                raise ValueError(f"Could not read processed frame {frame}.")
+            if img.shape[1] != output_size[0] or img.shape[0] != output_size[1]:
+                img = cv2.copyMakeBorder(
+                    img,
+                    0,
+                    output_size[1] - img.shape[0],
+                    0,
+                    output_size[0] - img.shape[1],
+                    cv2.BORDER_REPLICATE,
+                )
+            writer.send(img)
+    finally:
+        writer.close()
