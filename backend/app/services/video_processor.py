@@ -1,3 +1,4 @@
+import base64
 import math
 import os
 import random
@@ -8,9 +9,18 @@ from ultralytics import YOLO
 from app.config import YOLO_MODEL
 from app.services.unet_service import enhance_image
 
-model = YOLO(str(YOLO_MODEL))
+model = None
 MAX_IMAGES_PER_LOCATION = 5
 LOCATION_CENTER_DISTANCE = 0.075
+
+
+def load_yolo_model():
+        global model
+        if model is None:
+                if not YOLO_MODEL.is_file():
+                        raise FileNotFoundError(f"YOLO checkpoint is missing: {YOLO_MODEL}")
+                model = YOLO(str(YOLO_MODEL))
+        return model
 
 
 def process_frames(input_folder, output_folder, detection_folder, detection_url_prefix):
@@ -34,7 +44,7 @@ def process_frames(input_folder, output_folder, detection_folder, detection_url_
                         raise ValueError(f"Could not read extracted frame {frame_name}.")
 
                 enhanced = enhance_image(image)
-                detection_result = model(enhanced, verbose=False)[0]
+                detection_result = load_yolo_model()(enhanced, verbose=False)[0]
                 detections_count += len(detection_result.boxes)
                 frame_number = int(os.path.splitext(frame_name)[0].split("_")[-1]) + 1
                 height, width = enhanced.shape[:2]
@@ -143,3 +153,31 @@ def _same_location(first_box, second_box):
                 first_center[1] - second_center[1],
         )
         return overlap >= 0.25 or center_distance <= LOCATION_CENTER_DISTANCE
+
+
+def process_live_frame(frame):
+        enhanced = enhance_image(frame)
+        detection_result = load_yolo_model()(enhanced, verbose=False)[0]
+        annotated = detection_result.plot()
+        encoded_successfully, encoded_frame = cv2.imencode(
+                ".jpg",
+                annotated,
+                [int(cv2.IMWRITE_JPEG_QUALITY), 82],
+        )
+        if not encoded_successfully:
+                raise RuntimeError("Could not encode the analyzed camera frame.")
+
+        detections = []
+        for detection in detection_result.boxes:
+                class_id = int(detection.cls[0].item())
+                detections.append({
+                        "label": detection_result.names.get(class_id, str(class_id)),
+                        "confidence": round(float(detection.conf[0].item()), 4),
+                        "box": [round(float(value), 1) for value in detection.xyxy[0].tolist()],
+                })
+
+        return {
+                "annotated_frame": base64.b64encode(encoded_frame.tobytes()).decode("ascii"),
+                "detections": detections,
+                "detections_count": len(detections),
+        }

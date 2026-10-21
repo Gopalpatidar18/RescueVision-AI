@@ -1,4 +1,6 @@
+import cv2
 import logging
+import numpy as np
 import os
 import shutil
 import uuid
@@ -8,11 +10,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from app.config import OUTPUT_FOLDER, TEMP_FOLDER, UPLOAD_FOLDER
 from app.inference import process_video
+from app.services.video_processor import process_live_frame
 
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".avi", ".mkv", ".mov", ".mp4", ".webm"}
 MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+MAX_LIVE_FRAME_BYTES = 5 * 1024 * 1024
 
 
 @router.post("/upload-video")
@@ -38,6 +42,8 @@ def upload_video(file: UploadFile = File(...)):
 
         result = process_video(str(file_path), job_id)
         return {"message": "Analysis complete", **result}
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     except Exception as error:
@@ -52,3 +58,21 @@ def upload_video(file: UploadFile = File(...)):
         file.file.close()
         file_path.unlink(missing_ok=True)
         shutil.rmtree(TEMP_FOLDER / job_id, ignore_errors=True)
+
+
+@router.post("/live-frame")
+def analyze_live_frame(file: UploadFile = File(...)):
+    try:
+        image_bytes = file.file.read(MAX_LIVE_FRAME_BYTES + 1)
+        if len(image_bytes) > MAX_LIVE_FRAME_BYTES:
+            raise HTTPException(status_code=413, detail="Camera frames must be 5 MB or smaller.")
+
+        frame = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise HTTPException(status_code=422, detail="The uploaded camera frame is not a valid image.")
+
+        return process_live_frame(frame)
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    finally:
+        file.file.close()

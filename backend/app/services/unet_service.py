@@ -8,15 +8,7 @@ from app.config import UNET_MODEL
 from unet_training.unet import UNet
 
 device = torch.device("cpu")
-
-model = UNet()
-model.load_state_dict(
-    torch.load(
-        UNET_MODEL,
-        map_location=device
-    )
-)
-model.eval()
+model = None
 
 transform = transforms.Compose([
     transforms.Resize((256, 256)),
@@ -25,6 +17,14 @@ transform = transforms.Compose([
 
 
 def enhance_image(frame):
+    global model
+    if model is None:
+        if not UNET_MODEL.is_file():
+            raise FileNotFoundError(f"U-Net checkpoint is missing: {UNET_MODEL}")
+        model = UNet()
+        model.load_state_dict(torch.load(UNET_MODEL, map_location=device))
+        model.eval()
+
     h, w = frame.shape[:2]
 
     image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))

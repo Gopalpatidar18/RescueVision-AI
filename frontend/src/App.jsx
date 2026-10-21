@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import DetectedObjects from "./pages/DetectedObjects";
+import LiveFeed from "./pages/LiveFeed";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route element={<MainLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="detections" element={<DetectedObjects />} />
+          <Route path="live" element={<LiveFeed />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
