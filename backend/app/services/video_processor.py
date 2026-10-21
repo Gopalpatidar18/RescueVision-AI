@@ -4,9 +4,8 @@ import os
 import random
 
 import cv2
-from ultralytics import YOLO
 
-from app.config import YOLO_MODEL
+from app.config import FREE_TIER_MODE, YOLO_MODEL, YOLO_MODEL_NAME
 from app.services.unet_service import enhance_image
 
 model = None
@@ -17,9 +16,16 @@ LOCATION_CENTER_DISTANCE = 0.075
 def load_yolo_model():
         global model
         if model is None:
-                if not YOLO_MODEL.is_file():
-                        raise FileNotFoundError(f"YOLO checkpoint is missing: {YOLO_MODEL}")
-                model = YOLO(str(YOLO_MODEL))
+                if FREE_TIER_MODE:
+                        from ultralytics import YOLO
+
+                        model = YOLO(YOLO_MODEL_NAME)
+                else:
+                        if not YOLO_MODEL.is_file():
+                                raise FileNotFoundError(f"YOLO checkpoint is missing: {YOLO_MODEL}")
+                        from ultralytics import YOLO
+
+                        model = YOLO(str(YOLO_MODEL))
         return model
 
 

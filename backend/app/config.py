@@ -3,6 +3,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 MODEL_DIR = Path(os.environ.get("MODEL_DIR", BASE_DIR))
+FREE_TIER_MODE = os.environ.get("FREE_TIER_MODE", "false").lower() == "true"
+YOLO_MODEL_NAME = os.environ.get("YOLO_MODEL_NAME", "yolov8m.pt")
 
 UPLOAD_FOLDER = BASE_DIR / "uploads"
 OUTPUT_FOLDER = Path(os.environ.get("OUTPUT_DIR", BASE_DIR / "outputs"))

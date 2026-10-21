@@ -1,29 +1,33 @@
-import torch
 import cv2
 import numpy as np
 from PIL import Image
-from torchvision import transforms
 
-from app.config import UNET_MODEL
-from unet_training.unet import UNet
+from app.config import FREE_TIER_MODE, UNET_MODEL
 
-device = torch.device("cpu")
 model = None
-
-transform = transforms.Compose([
-    transforms.Resize((256, 256)),
-    transforms.ToTensor()
-])
+transform = None
 
 
 def enhance_image(frame):
-    global model
+    global model, transform
     if model is None:
         if not UNET_MODEL.is_file():
+            if FREE_TIER_MODE:
+                return cv2.detailEnhance(frame, sigma_s=10, sigma_r=0.15)
             raise FileNotFoundError(f"U-Net checkpoint is missing: {UNET_MODEL}")
+
+        import torch
+        from torchvision import transforms
+        from unet_training.unet import UNet
+
         model = UNet()
+        device = torch.device("cpu")
         model.load_state_dict(torch.load(UNET_MODEL, map_location=device))
         model.eval()
+        transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor(),
+        ])
 
     h, w = frame.shape[:2]
 

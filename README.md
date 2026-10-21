@@ -33,14 +33,13 @@ Open **Live feed** in the dashboard and allow camera access. The browser sends o
 
 ## Deploy to Render
 
-The root `render.yaml` defines a Render Blueprint with a Python API service and a static frontend. In Render, create a new Blueprint and connect this GitHub repository. The API uses a paid Standard instance and a 1 GB persistent disk mounted at `/var/data`; review the plan and estimated cost before approving creation.
+The root `render.yaml` defines a free Render Blueprint with a Python API service and a static frontend. In Render, create a new Blueprint and connect this GitHub repository.
 
-Model checkpoints are intentionally excluded from Git. After the Blueprint creates the API and disk, place these files under `/var/data/models/`:
+Free mode deliberately uses a smaller pretrained YOLOv8n model downloaded on first inference and OpenCV detail enhancement instead of the U-Net checkpoint. The local U-Net and YOLOv8m files remain excluded from Git and are not needed by the free fallback.
 
-- `unet_best.pth`
-- `yolov8m.pt`
+The free web service can sleep while idle, inference runs on CPU and may be slow, and uploaded videos/results are stored on ephemeral service storage. They can disappear when the instance restarts. This setup is for testing, not emergency-response or production use. Mobile live-camera access works on the Render HTTPS domain; the local LAN HTTP URL does not grant camera permission on phones.
 
-The API can start without the checkpoints, but video and live-frame inference returns HTTP 503 until both files are present. Copy the files from your private model storage using a secure transfer method; do not commit the 119 MB U-Net checkpoint to ordinary Git history. Restart the API after installing them. The frontend URL is `https://rescuevision-dashboard.onrender.com` and the API URL is `https://rescuevision-api.onrender.com`; if Render assigns different service URLs, update `FRONTEND_ORIGINS` and `VITE_API_BASE_URL` in the service settings and redeploy.
+The frontend URL is `https://rescuevision-dashboard.onrender.com` and the API URL is `https://rescuevision-api.onrender.com`; if Render assigns different service URLs, update `FRONTEND_ORIGINS` and `VITE_API_BASE_URL` in the service settings and redeploy.
 
 ## Pipeline
 
@@ -48,4 +47,4 @@ The API validates video extensions and a 500 MB size limit, extracts frames, enh
 
 ## Model status
 
-The running detector currently uses the included pretrained `yolov8m.pt`. The custom 53-class training dataset and training script are present, but no trained `best.pt` checkpoint is included or selected by the application. Train and evaluate a custom checkpoint before relying on project-specific classes or detection accuracy. The U-Net checkpoint is used for image enhancement; its training code uses paired hazy/clear images.
+Local development uses the pretrained `yolov8m.pt` and saved U-Net checkpoint when available. Free Render mode uses pretrained YOLOv8n and the OpenCV enhancement fallback. The custom 53-class training dataset and training script are present, but no trained `best.pt` checkpoint is included or selected by the application. Neither detector's accuracy has been validated for operational emergency response.
