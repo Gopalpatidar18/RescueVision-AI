@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ArrowLeft, Camera, CameraOff, CircleStop, LoaderCircle, Radio, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -14,13 +14,16 @@ export default function LiveFeed() {
   const [selectedLabel, setSelectedLabel] = useState("");
   const [frameCount, setFrameCount] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState("");
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const frameSequence = useRef(0);
+  const autoStartAttempted = useRef(false);
 
   const startFeed = async (deviceId = selectedCameraId) => {
     setError("");
+    setIsStarting(true);
     setAnnotatedFrame("");
     setDetections([]);
     setDetectionGroups([]);
@@ -28,14 +31,14 @@ export default function LiveFeed() {
     setFrameCount(0);
     frameSequence.current = 0;
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setError(window.isSecureContext
-        ? "Camera access is not available in this browser."
-        : "Camera access requires HTTPS on a phone. Open this page over a trusted HTTPS connection, or use localhost on this computer.");
-      return;
-    }
-
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError(window.isSecureContext
+          ? "Camera access is not available in this browser."
+          : "Camera access requires HTTPS on a phone. Open this page over a trusted HTTPS connection, or use localhost on this computer.");
+        return;
+      }
+
       const preferredConstraints = {
         facingMode: { ideal: "environment" },
         width: { ideal: 640 },
@@ -74,8 +77,20 @@ export default function LiveFeed() {
           : cameraError.name === "OverconstrainedError"
             ? "The selected camera mode is unavailable. Choose another camera or use the device's default camera."
             : "The camera could not be started. Check browser permissions and try again.");
+      } finally {
+        setIsStarting(false);
     }
   };
+
+    const requestCameraOnOpen = useEffectEvent(() => {
+      if (autoStartAttempted.current) return;
+      autoStartAttempted.current = true;
+      void startFeed();
+    });
+
+    useEffect(() => {
+      requestCameraOnOpen();
+    }, []);
 
   const changeCamera = async (deviceId) => {
     if (!deviceId || deviceId === selectedCameraId) return;
@@ -177,9 +192,9 @@ export default function LiveFeed() {
             <h1 className="text-2xl font-bold text-[#172936] sm:text-3xl">Live feed analysis</h1>
             <p className="mt-2 text-sm text-[#596975]">Analyze camera frames with the existing U-Net and YOLO models.</p>
           </div>
-          <span className={`inline-flex items-center gap-2 rounded-[6px] px-3 py-2 text-xs font-bold ${stream ? "bg-[#f8e9e7] text-[#a3372e]" : "bg-[#edf1f4] text-[#596975]"}`}>
-            <span className={`size-2 rounded-full ${stream ? "animate-pulse bg-[#b53d32]" : "bg-[#84919a]"}`} />
-            {stream ? "LIVE" : "STOPPED"}
+          <span className={`inline-flex items-center gap-2 rounded-[6px] px-3 py-2 text-xs font-bold ${stream ? "bg-[#f8e9e7] text-[#a3372e]" : isStarting ? "bg-[#fff4df] text-[#8a631d]" : "bg-[#edf1f4] text-[#596975]"}`}>
+            <span className={`size-2 rounded-full ${stream ? "animate-pulse bg-[#b53d32]" : isStarting ? "animate-pulse bg-[#d3a03e]" : "bg-[#84919a]"}`} />
+            {stream ? "LIVE" : isStarting ? "CONNECTING" : "STOPPED"}
           </span>
         </div>
       </section>
@@ -247,9 +262,9 @@ export default function LiveFeed() {
             Stop live analysis
           </button>
         ) : (
-          <button type="button" onClick={startFeed} className="inline-flex items-center gap-2 rounded-[6px] bg-[#172936] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#294251]">
-            <Camera size={17} aria-hidden="true" />
-            Start live analysis
+          <button type="button" onClick={() => startFeed()} disabled={isStarting} className="inline-flex items-center gap-2 rounded-[6px] bg-[#172936] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#294251] disabled:cursor-wait disabled:opacity-70">
+            {isStarting ? <LoaderCircle size={17} aria-hidden="true" className="animate-spin" /> : <Camera size={17} aria-hidden="true" />}
+            {isStarting ? "Connecting camera..." : "Start live analysis"}
           </button>
         )}
       </section>
