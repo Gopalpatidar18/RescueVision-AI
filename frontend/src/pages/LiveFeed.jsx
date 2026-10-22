@@ -6,6 +6,8 @@ import { detectLiveFrame } from "../services/api";
 
 export default function LiveFeed() {
   const [stream, setStream] = useState(null);
+  const [cameraDevices, setCameraDevices] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState("");
   const [annotatedFrame, setAnnotatedFrame] = useState("");
   const [detections, setDetections] = useState([]);
   const [detectionGroups, setDetectionGroups] = useState([]);
@@ -17,7 +19,7 @@ export default function LiveFeed() {
   const canvasRef = useRef(null);
   const frameSequence = useRef(0);
 
-  const startFeed = async () => {
+  const startFeed = async (deviceId = selectedCameraId) => {
     setError("");
     setAnnotatedFrame("");
     setDetections([]);
@@ -34,22 +36,54 @@ export default function LiveFeed() {
     }
 
     try {
-      const cameraStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-      });
+      const preferredConstraints = {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+      };
+      const attempts = [
+        ...(deviceId ? [{ deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }] : []),
+        preferredConstraints,
+        true,
+      ];
+      let cameraStream = null;
+      let lastCameraError = null;
+
+      for (const videoConstraints of attempts) {
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
+          break;
+        } catch (cameraError) {
+          lastCameraError = cameraError;
+          if (["NotAllowedError", "SecurityError"].includes(cameraError.name)) throw cameraError;
+        }
+      }
+      if (!cameraStream) throw lastCameraError || new Error("No camera could be opened.");
+
+      const availableCameras = (await navigator.mediaDevices.enumerateDevices())
+        .filter((device) => device.kind === "videoinput");
+      const activeCameraId = cameraStream.getVideoTracks()[0]?.getSettings().deviceId || "";
+      setCameraDevices(availableCameras);
+      setSelectedCameraId(activeCameraId);
       setStream(cameraStream);
     } catch (cameraError) {
       setError(cameraError.name === "NotAllowedError"
-        ? "Camera permission was denied. Allow camera access in your browser and try again."
+        ? "Camera permission was denied. Allow camera access for this site in your browser settings, then try again."
         : cameraError.name === "NotFoundError"
-          ? "No camera was found on this device."
-          : "The camera could not be started. Check camera permissions and try again.");
+          ? "This browser cannot access a camera. Connect or enable a camera, then check browser permissions."
+          : cameraError.name === "OverconstrainedError"
+            ? "The selected camera mode is unavailable. Choose another camera or use the device's default camera."
+            : "The camera could not be started. Check browser permissions and try again.");
     }
+  };
+
+  const changeCamera = async (deviceId) => {
+    if (!deviceId || deviceId === selectedCameraId) return;
+    stream?.getTracks().forEach((track) => track.stop());
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setStream(null);
+    setSelectedCameraId(deviceId);
+    await startFeed(deviceId);
   };
 
   const stopFeed = () => {
@@ -160,7 +194,25 @@ export default function LiveFeed() {
       <section className="grid gap-4 xl:grid-cols-2">
         <FeedPanel title="Camera" status={stream ? "Live source" : "No camera active"}>
           {stream ? (
-            <video ref={videoRef} muted playsInline className="aspect-video w-full bg-[#111c24] object-contain" />
+            <>
+              <video ref={videoRef} muted playsInline className="aspect-video w-full bg-[#111c24] object-contain" />
+              {cameraDevices.length > 1 && (
+                <label className="flex items-center justify-between gap-3 border-t border-[#e4e9ed] px-3 py-2 text-xs font-semibold text-[#596975]">
+                  Camera source
+                  <select
+                    value={selectedCameraId}
+                    onChange={(event) => changeCamera(event.target.value)}
+                    className="max-w-[70%] rounded-[5px] border border-[#d8dfe4] bg-white px-2 py-1.5 text-xs text-[#243542]"
+                  >
+                    {cameraDevices.map((device, index) => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Camera ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
           ) : (
             <div className="flex aspect-video flex-col items-center justify-center bg-[#edf1f4] text-center">
               <CameraOff size={28} aria-hidden="true" className="text-[#84919a]" />
