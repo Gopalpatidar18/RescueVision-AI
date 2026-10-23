@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ArrowLeft, Camera, CameraOff, CircleStop, LoaderCircle, Radio, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -19,7 +19,6 @@ export default function LiveFeed() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const frameSequence = useRef(0);
-  const autoStartAttempted = useRef(false);
 
   const startFeed = async (deviceId = selectedCameraId) => {
     setError("");
@@ -82,15 +81,17 @@ export default function LiveFeed() {
     }
   };
 
-useEffect(() => {
-    if (autoStartAttempted.current) return;
-    autoStartAttempted.current = true;
+  const requestCameraStart = useEffectEvent(() => {
+    void startFeed();
+  });
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
-      void startFeed();
+      requestCameraStart();
     }, 350);
 
     return () => window.clearTimeout(timer);
-    }, []);
+  }, []);
 
   const changeCamera = async (deviceId) => {
     if (!deviceId || deviceId === selectedCameraId) return;
